@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugFlow — Agile Bug Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans">
+
+    <!-- AUTH SCREEN (LOGIN / SIGNUP) -->
+    <div id="authScreen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-slate-200">
+            <div class="text-center mb-6">
+                <h1 class="text-3xl font-bold text-indigo-600">🐞 BugFlow</h1>
+                <p class="text-slate-500 text-sm mt-1">Jira-Style Project & Issue Tracker</p>
+            </div>
+
+            <div class="flex border-b mb-6">
+                <button id="loginTab" onclick="switchAuth('login')" class="w-1/2 py-2 font-semibold text-indigo-600 border-b-2 border-indigo-600">Login</button>
+                <button id="signupTab" onclick="switchAuth('signup')" class="w-1/2 py-2 font-semibold text-slate-400">Sign Up</button>
+            </div>
+
+            <form id="authForm" onsubmit="handleAuth(event)" class="space-y-4">
+                <div id="nameField" class="hidden">
+                    <label class="block text-sm font-medium mb-1">Full Name</label>
+                    <input type="text" id="fullName" placeholder="Prachi Wanjare" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Email</label>
+                    <input type="email" id="email" required placeholder="prachi@example.com" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Password</label>
+                    <input type="password" id="password" required placeholder="••••••••" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div id="roleField" class="hidden">
+                    <label class="block text-sm font-medium mb-1">Role</label>
+                    <select id="role" class="w-full px-3 py-2 border rounded-lg">
+                        <option value="DEVELOPER">Developer</option>
+                        <option value="PROJECT_MANAGER">Project Manager</option>
+                        <option value="ADMIN">Admin</option>
+                    </select>
+                </div>
+                <p id="authError" class="text-red-500 text-sm hidden"></p>
+                <button type="submit" id="authBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD SCREEN -->
+    <div id="dashboardScreen" class="hidden min-h-screen flex flex-col">
+        <!-- Top Navbar -->
+        <header class="bg-indigo-700 text-white px-6 py-3 flex justify-between items-center shadow">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">🐞</span>
+                <h1 class="text-xl font-bold tracking-wide">BugFlow Workspace</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="userBadge" class="text-sm bg-indigo-800 px-3 py-1 rounded-full"></span>
+                <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white text-sm px-3 py-1.5 rounded-lg">Logout</button>
+            </div>
+        </header>
+
+        <!-- Project, Search/Filter & Action Bar -->
+        <div class="bg-white border-b px-6 py-4 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex flex-wrap items-center gap-3">
+                <label class="font-semibold text-slate-600">Project:</label>
+                <select id="projectSelect" onchange="loadIssues()" class="border px-3 py-2 rounded-lg bg-slate-50 font-medium min-w-[200px]">
+                    <option value="">-- Select a Project --</option>
+                </select>
+                <button onclick="openModal('projectModal')" class="bg-slate-800 hover:bg-slate-900 text-white text-sm px-3 py-2 rounded-lg">+ New Project</button>
+
+                <!-- Search & Priority Filter -->
+                <input
+                    type="text"
+                    id="searchInput"
+                    oninput="loadIssues()"
+                    placeholder="Search title or description..."
+                    class="border px-3 py-2 rounded-lg bg-slate-50 text-sm min-w-[210px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                <select
+                    id="priorityFilter"
+                    onchange="loadIssues()"
+                    class="border px-3 py-2 rounded-lg bg-slate-50 text-sm font-medium"
+                >
+                    <option value="ALL">All Priorities</option>
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                    <option value="CRITICAL">Critical</option>
+                </select>
+                <button
+                    type="button"
+                    onclick="resetFilters()"
+                    class="text-xs text-slate-600 hover:text-slate-900 border px-2.5 py-2 rounded-lg bg-slate-50"
+                >
+                    Clear
+                </button>
+            </div>
+            <button onclick="openIssueModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg shadow">+ Report Bug / Issue</button>
+        </div>
+
+        <!-- KANBAN BOARD -->
+        <main class="flex-1 p-6 grid grid-cols-1 md:grid-cols-4 gap-5">
+            <!-- TO DO -->
+            <div class="bg-slate-200/70 rounded-xl p-4 flex flex-col">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="font-bold text-slate-700 text-sm uppercase tracking-wider">📌 To Do</h2>
+                    <span id="count-TO_DO" class="bg-slate-300 text-slate-700 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div id="col-TO_DO" class="space-y-3 flex-1"></div>
+            </div>
+
+            <!-- IN PROGRESS -->
+            <div class="bg-blue-50 rounded-xl p-4 flex flex-col border border-blue-100">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="font-bold text-blue-700 text-sm uppercase tracking-wider">⚡ In Progress</h2>
+                    <span id="count-IN_PROGRESS" class="bg-blue-200 text-blue-800 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div id="col-IN_PROGRESS" class="space-y-3 flex-1"></div>
+            </div>
+
+            <!-- IN REVIEW -->
+            <div class="bg-amber-50 rounded-xl p-4 flex flex-col border border-amber-100">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="font-bold text-amber-700 text-sm uppercase tracking-wider">🔍 In Review</h2>
+                    <span id="count-IN_REVIEW" class="bg-amber-200 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div id="col-IN_REVIEW" class="space-y-3 flex-1"></div>
+            </div>
+
+            <!-- DONE -->
+            <div class="bg-emerald-50 rounded-xl p-4 flex flex-col border border-emerald-100">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="font-bold text-emerald-700 text-sm uppercase tracking-wider">✅ Done</h2>
+                    <span id="count-DONE" class="bg-emerald-200 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <div id="col-DONE" class="space-y-3 flex-1"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- CREATE PROJECT MODAL -->
+    <div id="projectModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+            <h3 class="text-lg font-bold mb-4">Create New Project</h3>
+            <form onsubmit="createProject(event)" class="space-y-3">
+                <input type="text" id="projName" required placeholder="Project Name (e.g. E-Commerce App)" class="w-full border px-3 py-2 rounded-lg">
+                <input type="text" id="projKey" required maxlength="6" placeholder="Project Key (e.g. ECOM)" class="w-full border px-3 py-2 rounded-lg uppercase">
+                <textarea id="projDesc" placeholder="Short description..." class="w-full border px-3 py-2 rounded-lg"></textarea>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('projectModal')" class="px-4 py-2 text-slate-600">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CREATE ISSUE MODAL -->
+    <div id="issueModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+            <h3 class="text-lg font-bold mb-4">Report New Bug / Issue</h3>
+            <form onsubmit="createIssue(event)" class="space-y-3">
+                <input type="text" id="issueTitle" required placeholder="Issue Title (e.g. Login button not working)" class="w-full border px-3 py-2 rounded-lg">
+                <textarea id="issueDesc" placeholder="Steps to reproduce or details..." class="w-full border px-3 py-2 rounded-lg"></textarea>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-500">Type</label>
+                        <select id="issueType" class="w-full border px-3 py-2 rounded-lg">
+                            <option value="BUG">🐞 Bug</option>
+                            <option value="TASK">📋 Task</option>
+                            <option value="STORY">✨ Story</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-500">Priority</label>
+                        <select id="issuePriority" class="w-full border px-3 py-2 rounded-lg">
+                            <option value="LOW">Low</option>
+                            <option value="MEDIUM" selected>Medium</option>
+                            <option value="HIGH">High</option>
+                            <option value="CRITICAL">Critical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('issueModal')" class="px-4 py-2 text-slate-600">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold">Create Issue</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- EDIT ISSUE MODAL -->
+    <div id="editIssueModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+            <h3 class="text-lg font-bold mb-4">Edit Issue</h3>
+            <form onsubmit="submitEditIssue(event)" class="space-y-3">
+                <input type="hidden" id="editIssueId">
+                <input type="text" id="editIssueTitle" required placeholder="Issue Title" class="w-full border px-3 py-2 rounded-lg">
+                <textarea id="editIssueDesc" placeholder="Details..." class="w-full border px-3 py-2 rounded-lg"></textarea>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-500">Type</label>
+                        <select id="editIssueType" class="w-full border px-3 py-2 rounded-lg">
+                            <option value="BUG">🐞 Bug</option>
+                            <option value="TASK">📋 Task</option>
+                            <option value="STORY">✨ Story</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-500">Priority</label>
+                        <select id="editIssuePriority" class="w-full border px-3 py-2 rounded-lg">
+                            <option value="LOW">Low</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="HIGH">High</option>
+                            <option value="CRITICAL">Critical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeModal('editIssueModal')" class="px-4 py-2 text-slate-600">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API = "http://localhost:8082/api";
+        let authMode = "login";
+        let currentUser = JSON.parse(localStorage.getItem("bugflow_user") || "null");
+        let issuesCache = {};
+
+        if (currentUser) showDashboard();
+
+        function getAuthHeaders(includeJson = true) {
+            const headers = {};
+            if (includeJson) headers["Content-Type"] = "application/json";
+
+            const token =
+                currentUser?.token ||
+                localStorage.getItem("token") ||
+                localStorage.getItem("jwt") ||
+                localStorage.getItem("accessToken");
+            if (token) headers["Authorization"] = `Bearer ${token}`;
+
+            if (currentUser?.userId != null) headers["X-User-Id"] = String(currentUser.userId);
+            if (currentUser?.role) headers["X-User-Role"] = String(currentUser.role);
+            return headers;
+        }
+
+        function switchAuth(mode) {
+            authMode = mode;
+            document.getElementById("nameField").classList.toggle("hidden", mode === "login");
+            document.getElementById("roleField").classList.toggle("hidden", mode === "login");
+            document.getElementById("authBtn").innerText = mode === "login" ? "Login" : "Create Account";
+            document.getElementById("loginTab").className = mode === "login" ? "w-1/2 py-2 font-semibold text-indigo-600 border-b-2 border-indigo-600" : "w-1/2 py-2 font-semibold text-slate-400";
+            document.getElementById("signupTab").className = mode === "signup" ? "w-1/2 py-2 font-semibold text-indigo-600 border-b-2 border-indigo-600" : "w-1/2 py-2 font-semibold text-slate-400";
+            document.getElementById("authError").classList.add("hidden");
+        }
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+            const url = authMode === "login" ? `${API}/auth/login` : `${API}/auth/signup`;
+            const body = authMode === "login"
+                ? { email, password }
+                : { fullName: document.getElementById("fullName").value, email, password, role: document.getElementById("role").value };
+
+            try {
+                const res = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || data.error || "Authentication failed");
+
+                if (authMode === "signup") {
+                    alert("Account created! Please login now.");
+                    switchAuth("login");
+                } else {
+                    localStorage.setItem("bugflow_user", JSON.stringify(data));
+                    if (data.token) localStorage.setItem("token", data.token);
+                    currentUser = data;
+                    showDashboard();
+                }
+            } catch (err) {
+                const errEl = document.getElementById("authError");
+                errEl.innerText = err.message;
+                errEl.classList.remove("hidden");
+            }
+        }
+
+        function showDashboard() {
+            document.getElementById("authScreen").classList.add("hidden");
+            document.getElementById("dashboardScreen").classList.remove("hidden");
+            document.getElementById("userBadge").innerText = `${currentUser.name} (${currentUser.role})`;
+
+            loadProjects();
+        }
+
+        function logout() {
+            localStorage.removeItem("bugflow_user");
+            localStorage.removeItem("token");
+            location.reload();
+        }
+
+        async function loadProjects() {
+            const res = await fetch(`${API}/projects`);
+            const projects = await res.json();
+            const select = document.getElementById("projectSelect");
+            select.innerHTML = `<option value="">-- Select a Project --</option>`;
+            projects.forEach(p => {
+                select.innerHTML += `<option value="${p.id}">[${p.projectKey}] ${p.name}</option>`;
+            });
+            if (projects.length > 0) {
+                select.value = projects[0].id;
+                loadIssues();
+            }
+        }
+
+        async function createProject(e) {
+            e.preventDefault();
+            await fetch(`${API}/projects`, {
+                method: "POST",
+                headers: getAuthHeaders(true),
+                body: JSON.stringify({
+                    name: document.getElementById("projName").value,
+                    projectKey: document.getElementById("projKey").value,
+                    description: document.getElementById("projDesc").value
+                })
+            });
+            closeModal("projectModal");
+            loadProjects();
+        }
+
+        function resetFilters() {
+            document.getElementById("searchInput").value = "";
+            document.getElementById("priorityFilter").value = "ALL";
+            loadIssues();
+        }
+
+        async function loadIssues() {
+            const projectId = document.getElementById("projectSelect").value;
+            ["TO_DO", "IN_PROGRESS", "IN_REVIEW", "DONE"].forEach(s => {
+                document.getElementById(`col-${s}`).innerHTML = "";
+                document.getElementById(`count-${s}`).innerText = "0";
+            });
+            issuesCache = {};
+            if (!projectId) return;
+
+            const keyword = document.getElementById("searchInput")?.value.trim() || "";
+            const priority = document.getElementById("priorityFilter")?.value || "ALL";
+
+            const params = new URLSearchParams({ projectId });
+            if (keyword) params.append("keyword", keyword);
+            if (priority && priority !== "ALL") params.append("priority", priority);
+
+            const res = await fetch(`${API}/issues/search?${params.toString()}`);
+            const issues = await res.json();
+            const counts = { TO_DO: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 0 };
+
+            const priorityColors = {
+                LOW: "bg-slate-100 text-slate-600",
+                MEDIUM: "bg-blue-100 text-blue-700",
+                HIGH: "bg-orange-100 text-orange-700",
+                CRITICAL: "bg-red-100 text-red-700"
+            };
+
+            issues.forEach(issue => {
+                issuesCache[issue.id] = issue;
+                counts[issue.status]++;
+                const col = document.getElementById(`col-${issue.status}`);
+                col.innerHTML += `
+                    <div class="bg-white p-3.5 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition">
+                        <div class="flex justify-between items-start gap-2">
+                            <span class="text-xs font-bold px-2 py-0.5 rounded ${priorityColors[issue.priority]}">${issue.issueType} • ${issue.priority}</span>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="openEditIssueModal(${issue.id})" class="text-slate-500 hover:text-indigo-600 text-xs font-medium">Edit</button>
+                                <button type="button" onclick="deleteIssue(${issue.id})" class="text-slate-400 hover:text-red-500 text-xs">✕</button>
+                            </div>
+                        </div>
+                        <h4 class="font-semibold text-slate-800 mt-2">${escapeHtml(issue.title)}</h4>
+                        <p class="text-xs text-slate-500 mt-1">${escapeHtml(issue.description || "")}</p>
+                        <div class="mt-3 pt-2 border-t flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[11px] text-slate-400">#${issue.id}</span>
+                                <button type="button" onclick="event.stopPropagation(); openIssueComments(${issue.id}, '${escapeHtml(issue.title)}')" class="text-xs text-indigo-600 hover:underline font-medium">
+                                    Comments
+                                </button>
+                            </div>
+                            <select onchange="updateStatus(${issue.id}, this.value)" class="text-xs border rounded px-1.5 py-1 bg-slate-50">
+                                <option value="TO_DO" ${issue.status === "TO_DO" ? "selected" : ""}>To Do</option>
+                                <option value="IN_PROGRESS" ${issue.status === "IN_PROGRESS" ? "selected" : ""}>In Progress</option>
+                                <option value="IN_REVIEW" ${issue.status === "IN_REVIEW" ? "selected" : ""}>In Review</option>
+                                <option value="DONE" ${issue.status === "DONE" ? "selected" : ""}>Done</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            });
+
+            Object.keys(counts).forEach(s => document.getElementById(`count-${s}`).innerText = counts[s]);
+        }
+
+        async function createIssue(e) {
+            e.preventDefault();
+            const projectId = document.getElementById("projectSelect").value;
+            if (!projectId) return alert("Please create or select a project first!");
+
+            await fetch(`${API}/issues`, {
+                method: "POST",
+                headers: getAuthHeaders(true),
+                body: JSON.stringify({
+                    projectId,
+                    title: document.getElementById("issueTitle").value,
+                    description: document.getElementById("issueDesc").value,
+                    issueType: document.getElementById("issueType").value,
+                    priority: document.getElementById("issuePriority").value,
+                    reporterId: currentUser?.userId
+                })
+            });
+            closeModal("issueModal");
+            document.getElementById("issueTitle").value = "";
+            document.getElementById("issueDesc").value = "";
+            loadIssues();
+        }
+
+        function openEditIssueModal(issueId) {
+            const issue = issuesCache[issueId];
+            if (!issue) return;
+
+            document.getElementById("editIssueId").value = issue.id;
+            document.getElementById("editIssueTitle").value = issue.title || "";
+            document.getElementById("editIssueDesc").value = issue.description || "";
+            document.getElementById("editIssueType").value = issue.issueType || "BUG";
+            document.getElementById("editIssuePriority").value = issue.priority || "MEDIUM";
+            openModal("editIssueModal");
+        }
+
+        async function submitEditIssue(e) {
+            e.preventDefault();
+            const issueId = document.getElementById("editIssueId").value;
+
+            const res = await fetch(`${API}/issues/${issueId}`, {
+                method: "PUT",
+                headers: getAuthHeaders(true),
+                body: JSON.stringify({
+                    title: document.getElementById("editIssueTitle").value,
+                    description: document.getElementById("editIssueDesc").value,
+                    issueType: document.getElementById("editIssueType").value,
+                    priority: document.getElementById("editIssuePriority").value
+                })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(errData.message || `Failed to update issue (${res.status})`);
+                return;
+            }
+
+            closeModal("editIssueModal");
+            loadIssues();
+        }
+
+        async function updateStatus(id, status) {
+            await fetch(`${API}/issues/${id}/status`, {
+                method: "PATCH",
+                headers: getAuthHeaders(true),
+                body: JSON.stringify({ status })
+            });
+            loadIssues();
+        }
+
+        async function deleteIssue(id) {
+            const res = await fetch(`${API}/issues/${id}`, {
+                method: "DELETE",
+                headers: getAuthHeaders(false)
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                alert(errData.message || `Failed to delete issue (${res.status})`);
+                return;
+            }
+
+            loadIssues();
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove("hidden"); }
+        function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
+        function openIssueModal() {
+            if (!document.getElementById("projectSelect").value) return alert("Please create a project first!");
+            openModal("issueModal");
+        }
+
+        let activeCommentIssueId = null;
+
+        function openIssueComments(issueId, issueTitle = '') {
+          activeCommentIssueId = issueId;
+          document.getElementById('commentModalTitle').textContent =
+            issueTitle ? `Comments — ${issueTitle}` : `Comments (Issue #${issueId})`;
+          document.getElementById('commentModalSubtitle').textContent = `Issue ID: #${issueId}`;
+          document.getElementById('commentInput').value = '';
+          document.getElementById('issueCommentModal').style.display = 'flex';
+          loadComments(issueId);
+        }
+
+        function closeCommentModal() {
+          activeCommentIssueId = null;
+          document.getElementById('issueCommentModal').style.display = 'none';
+        }
+
+        async function loadComments(issueId) {
+          const listEl = document.getElementById('commentsList');
+          listEl.innerHTML = `<p style="color:#6b7280; font-size:14px;">Loading comments...</p>`;
+
+          try {
+            const res = await fetch(`/api/issues/${issueId}/comments`, {
+              headers: getAuthHeaders(false)
+            });
+
+            if (!res.ok) {
+              throw new Error(`Failed to load comments (${res.status})`);
+            }
+
+            const comments = await res.json();
+            if (!Array.isArray(comments) || comments.length === 0) {
+              listEl.innerHTML = `<p style="color:#6b7280; font-size:14px;">No comments yet. Be the first to comment!</p>`;
+              return;
+            }
+
+            listEl.innerHTML = comments.map(c => {
+              const authorName = c.author?.name || c.author?.email || 'Team Member';
+              const createdText = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
+              return `
+                <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px;">
+                  <div style="display:flex; justify-content:space-between; font-size:12px; color:#6b7280; margin-bottom:4px;">
+                    <strong style="color:#111827;">${escapeHtml(authorName)}</strong>
+                    <span>${escapeHtml(createdText)}</span>
+                  </div>
+                  <div style="font-size:14px; color:#1f2937; white-space:pre-wrap;">${escapeHtml(c.content)}</div>
+                </div>
+              `;
+            }).join('');
+          } catch (err) {
+            listEl.innerHTML = `<p style="color:#dc2626; font-size:14px;">${escapeHtml(err.message)}</p>`;
+          }
+        }
+
+        async function submitComment(event) {
+          event.preventDefault();
+          if (!activeCommentIssueId) return;
+
+          const inputEl = document.getElementById('commentInput');
+          const content = inputEl.value.trim();
+          if (!content) return;
+
+          try {
+            const res = await fetch(`/api/issues/${activeCommentIssueId}/comments`, {
+              method: 'POST',
+              headers: getAuthHeaders(true),
+              body: JSON.stringify({ content })
+            });
+
+            if (!res.ok) {
+              throw new Error(`Failed to post comment (${res.status})`);
+            }
+
+            inputEl.value = '';
+            await loadComments(activeCommentIssueId);
+          } catch (err) {
+            alert(err.message);
+          }
+        }
+
+        function escapeHtml(str) {
+          return String(str)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+        }
+    </script>
+
+    <!-- Issue Comments Modal -->
+    <div id="issueCommentModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+      <div style="background:#fff; width:100%; max-width:540px; border-radius:12px; padding:20px; box-shadow:0 12px 30px rgba(0,0,0,0.25); font-family:sans-serif;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e5e7eb; padding-bottom:12px;">
+          <div>
+            <h3 id="commentModalTitle" style="margin:0; font-size:18px; color:#111827;">Issue Comments</h3>
+            <small id="commentModalSubtitle" style="color:#6b7280;"></small>
+          </div>
+          <button type="button" onclick="closeCommentModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#6b7280;">&times;</button>
+        </div>
+
+        <div id="commentsList" style="max-height:280px; overflow-y:auto; margin:14px 0; display:flex; flex-direction:column; gap:10px;">
+          <p style="color:#6b7280; font-size:14px;">Loading comments...</p>
+        </div>
+
+        <form id="commentForm" onsubmit="submitComment(event)" style="display:flex; flex-direction:column; gap:10px; border-top:1px solid #e5e7eb; padding-top:12px;">
+          <textarea id="commentInput" rows="3" placeholder="Write a comment..." required style="width:100%; box-sizing:border-box; padding:10px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; resize:vertical;"></textarea>
+          <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button type="button" onclick="closeCommentModal()" style="padding:8px 14px; border:1px solid #d1d5db; background:#fff; border-radius:8px; cursor:pointer;">Close</button>
+            <button type="submit" style="padding:8px 16px; border:none; background:#4f46e5; color:#fff; border-radius:8px; cursor:pointer; font-weight:600;">Post Comment</button>
+          </div>
+        </form>
+      </div>
+    </div>
+</body>
+</html>
