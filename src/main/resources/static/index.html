@@ -227,7 +227,7 @@
     </div>
 
     <script>
-        const API = "http://localhost:8082/api";
+        const API = "/api";
         let authMode = "login";
         let currentUser = JSON.parse(localStorage.getItem("bugflow_user") || "null");
         let issuesCache = {};
@@ -519,7 +519,7 @@
           listEl.innerHTML = `<p style="color:#6b7280; font-size:14px;">Loading comments...</p>`;
 
           try {
-            const res = await fetch(`/api/issues/${issueId}/comments`, {
+            const res = await fetch(`${API}/issues/${issueId}/comments`, {
               headers: getAuthHeaders(false)
             });
 
@@ -560,7 +560,7 @@
           if (!content) return;
 
           try {
-            const res = await fetch(`/api/issues/${activeCommentIssueId}/comments`, {
+            const res = await fetch(`${API}/issues/${activeCommentIssueId}/comments`, {
               method: 'POST',
               headers: getAuthHeaders(true),
               body: JSON.stringify({ content })
